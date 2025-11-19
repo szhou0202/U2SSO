@@ -202,7 +202,7 @@ func RegistrationProof(index int, currentm int, currentN int, serviceName []byte
 }
 
 /*
-M should be log(N)
+M should be log(N), szhou: do we have to explicitly set this or is it a relationship that occurs
 */
 func RegistrationVerify(proofHex string, currentm int, currentN int, serviceName []byte, challenge []byte, idList [][]byte, spkBytes []byte) bool {
 	chal := make([]C.uint8_t, 32)
@@ -259,6 +259,7 @@ func RegistrationVerify(proofHex string, currentm int, currentN int, serviceName
 	return true
 }
 
+// szhou: what is the difference between AuthProof and RegistrationProof
 func AuthProof(serviceName []byte, challenge []byte, mskBytes []byte) (string, bool) {
 	msk := make([]C.uint8_t, 32)
 	ssk := make([]C.uint8_t, 32)
@@ -467,4 +468,17 @@ func GetallActiveIDfromContract(inst *U2sso) [][]byte {
 	}
 
 	return idlist
+}
+
+// szhou: benchmarking
+var (
+	ring_sizes = []int{8, 16, 32, 64, 128, 256, 512, 1024}
+)
+
+func Workflow() {
+	fmt.Print("hello world")
+}
+
+func CreateNKeys(n int) {
+	fmt.Print(n)
 }

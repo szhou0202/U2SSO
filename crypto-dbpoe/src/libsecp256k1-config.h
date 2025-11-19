@@ -46,7 +46,7 @@
 /* #undef ENABLE_MODULE_WHITELIST */
 
 /* Define this symbol if OpenSSL EC functions are available */
-/* #undef ENABLE_OPENSSL_TESTS */
+#define ENABLE_OPENSSL_TESTS 1
 
 /* Define this symbol if __builtin_clzll is available */
 #define HAVE_BUILTIN_CLZLL 1
@@ -73,7 +73,7 @@
 #define HAVE_LIBCRYPTO 1
 
 /* Define this symbol if libgmp is installed */
-/* #undef HAVE_LIBGMP */
+#define HAVE_LIBGMP 1
 
 /* Define to 1 if you have the <stdint.h> header file. */
 #define HAVE_STDINT_H 1
@@ -151,16 +151,16 @@
 #define USE_FIELD_5X52 1
 
 /* Define this symbol to use the native field inverse implementation */
-#define USE_FIELD_INV_BUILTIN 1
+/* #undef USE_FIELD_INV_BUILTIN */
 
 /* Define this symbol to use the num-based field inverse implementation */
-/* #undef USE_FIELD_INV_NUM */
+#define USE_FIELD_INV_NUM 1
 
 /* Define this symbol to use the gmp implementation for num */
-/* #undef USE_NUM_GMP */
+#define USE_NUM_GMP 1
 
 /* Define this symbol to use no num implementation */
-#define USE_NUM_NONE 1
+/* #undef USE_NUM_NONE */
 
 /* Define this symbol to use the 4x64 scalar implementation */
 #define USE_SCALAR_4X64 1
@@ -169,10 +169,10 @@
 /* #undef USE_SCALAR_8X32 */
 
 /* Define this symbol to use the native scalar inverse implementation */
-#define USE_SCALAR_INV_BUILTIN 1
+/* #undef USE_SCALAR_INV_BUILTIN */
 
 /* Define this symbol to use the num-based scalar inverse implementation */
-/* #undef USE_SCALAR_INV_NUM */
+#define USE_SCALAR_INV_NUM 1
 
 /* Version number of package */
 #define VERSION "0.1"

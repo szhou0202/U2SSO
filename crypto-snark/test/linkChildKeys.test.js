@@ -217,7 +217,12 @@ describe("Boquila", function () {
                 }
                 const endV = new Date().getTime();
                 assert.equal(true, val);
-                proofSize = 256; // todo: compute the proof size?
+                // proofSize = 256; // todo: compute the proof size?
+                // szhou: std deviation of runs 
+                
+                const json = JSON.stringify(proof);
+                proofSize = new TextEncoder().encode(json).length;
+                
                 console.log("%d, %d, %d, %d", proofSize, groupSize, (endP - startP)/testcases, (endV - startV)/testcases)
             }
         });

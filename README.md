@@ -6,3 +6,6 @@ Identity management is a critical aspect of our digital lives. Federated identit
 
 ## Proof-of-concept
 For a guided proof-of-concept follow the detailed roadmap under `proof-of-concept` directory.
+
+## Benchmarking
+I added benchmarking under proof-of-concept since I do not know how to modify N in the bench_sign.c 
