@@ -8,6 +8,27 @@
 #include "include/secp256k1_ringcip.h"
 
 #include <time.h>
+#include <math.h>
+
+// szhou: chatgpt generated
+static double mean(const double *vals, int n) {
+    if (n <= 0) return 0.0;
+    double sum = 0.0;
+    for (int i = 0; i < n; i++) sum += vals[i];
+    return sum / n;
+}
+
+// sample stddev (divide by n-1). Use /n if you want population stddev.
+static double stddev_sample(const double *vals, int n) {
+    if (n <= 1) return 0.0;
+    double m = mean(vals, n);
+    double sq = 0.0;
+    for (int i = 0; i < n; i++) {
+        double d = vals[i] - m;
+        sq += d * d;
+    }
+    return sqrt(sq / (n - 1));
+}
 
 void printarray(uint8_t *buf, int len) {
     for (int i = 0; i < len; i++) {
@@ -235,23 +256,48 @@ int test_boquila_bench(void) {
     int test_cases = 10;
     double proving_time = 0;
     double verify_time = 0;
+
     for (int m = 3; m < rctx.m; m++) {
+        // uint8_t proof_size = secp256k1_zero_mcom_get_size(&rctx, m) * sizeof(uint8_t);
         uint8_t *proof = (uint8_t *) malloc(secp256k1_zero_mcom_get_size(&rctx, m) * sizeof(uint8_t));
-        clock_t begin = clock();
+
+        double *prove_times  = (double *) malloc(test_cases * sizeof(double));
+        double *verify_times = (double *) malloc(test_cases * sizeof(double));
+        
         for (t = 0; t < test_cases; t++) {
+            clock_t begin = clock();
             CHECK(secp256k1_boquila_prove_memmpk(ctx, &rctx, proof, mpks, msks[j], chalregi, name, name_len, &cpk, j, N, m));
+            clock_t end = clock();
+            prove_times[t] = (double)(end - begin) / CLOCKS_PER_SEC;
         }
-        clock_t end = clock();
-        double proving_time = (double)(end - begin) / CLOCKS_PER_SEC;
-        begin = clock();
         for (t = 0; t < test_cases; t++) {
-            CHECK(secp256k1_boquila_verify_memmpk(ctx, &rctx, proof, mpks, chalregi, name, name_len, &cpk, N, m));
+            clock_t begin = clock();
+            CHECK(secp256k1_boquila_verify_memmpk(
+                ctx, &rctx, proof, mpks, chalregi, name, name_len, &cpk, N, m
+            ));
+            clock_t end = clock();
+            verify_times[t] = (double)(end - begin) / CLOCKS_PER_SEC;
         }
-        end = clock();
-        double verify_time = (double)(end - begin) / CLOCKS_PER_SEC;
+
+        double prove_mean   = mean(prove_times,  test_cases);
+        double prove_stddev = stddev_sample(prove_times, test_cases);
+        double verify_mean  = mean(verify_times, test_cases);
+        double verify_stddev= stddev_sample(verify_times, test_cases);
+
+        free(prove_times);
+        free(verify_times);
         free(proof);
+
         N *= rctx.n;
-        printf("%d, %d, %d, %f, %f\n", N, m, secp256k1_zero_mcom_get_size(&rctx, m), proving_time/test_cases, verify_time/test_cases);
+
+        printf("%d, %d, %d, "
+           "prove_mean=%f, prove_std=%f, "
+           "verify_mean=%f, verify_std=%f\n",
+           N, m, secp256k1_zero_mcom_get_size(&rctx, m),
+           prove_mean, prove_stddev,
+           verify_mean, verify_stddev);
+        // printf("%d, %d, %d, %f, %f\n", N, m, secp256k1_zero_mcom_get_size(&rctx, m), proving_time/test_cases, verify_time/test_cases);
+        // szhou: note i don't think m actually matters, it corresponds to the ring size, it is log_2(ring_size)-1, whatever that means
     }
     secp256k1_ringcip_context_clear(&rctx);
 }
@@ -303,21 +349,41 @@ int test_boquila_3_bench(void) {
     double verify_time = 0;
     for (int m = 2; m < rctx.m; m++) {
         uint8_t *proof = (uint8_t *) malloc(secp256k1_zero_mcom_get_size(&rctx, m) * sizeof(uint8_t));
-        clock_t begin = clock();
+        double *prove_times  = (double *) malloc(test_cases * sizeof(double));
+        double *verify_times = (double *) malloc(test_cases * sizeof(double));
+        
         for (t = 0; t < test_cases; t++) {
+            clock_t begin = clock();
             CHECK(secp256k1_boquila_prove_memmpk(ctx, &rctx, proof, mpks, msks[j], chalregi, name, name_len, &cpk, j, N, m));
+            clock_t end = clock();
+            prove_times[t] = (double)(end - begin) / CLOCKS_PER_SEC;
         }
-        clock_t end = clock();
-        double proving_time = (double)(end - begin) / CLOCKS_PER_SEC;
-        begin = clock();
         for (t = 0; t < test_cases; t++) {
-            CHECK(secp256k1_boquila_verify_memmpk(ctx, &rctx, proof, mpks, chalregi, name, name_len, &cpk, N, m));
+            clock_t begin = clock();
+            CHECK(secp256k1_boquila_verify_memmpk(
+                ctx, &rctx, proof, mpks, chalregi, name, name_len, &cpk, N, m
+            ));
+            clock_t end = clock();
+            verify_times[t] = (double)(end - begin) / CLOCKS_PER_SEC;
         }
-        end = clock();
-        double verify_time = (double)(end - begin) / CLOCKS_PER_SEC;
+
+        double prove_mean   = mean(prove_times,  test_cases);
+        double prove_stddev = stddev_sample(prove_times, test_cases);
+        double verify_mean  = mean(verify_times, test_cases);
+        double verify_stddev= stddev_sample(verify_times, test_cases);
+
+        free(prove_times);
+        free(verify_times);
         free(proof);
+
         N *= rctx.n;
-        printf("%d, %d, %d, %f, %f\n", N, m, secp256k1_zero_mcom_get_size(&rctx, m), proving_time/test_cases, verify_time/test_cases);
+
+        printf("%d, %d, %d, "
+           "prove_mean=%f, prove_std=%f, "
+           "verify_mean=%f, verify_std=%f\n",
+           N, m, secp256k1_zero_mcom_get_size(&rctx, m),
+           prove_mean, prove_stddev,
+           verify_mean, verify_stddev);
     }
     secp256k1_ringcip_context_clear(&rctx);
 }
@@ -367,30 +433,62 @@ int test_boquila_DBPoE_bench(void) {
         CHECK(secp256k1_boquila_derive_DBPoE_spk(ctx, &rctx, &cpk, csk));
 
         int N = 8;
-        int test_cases = 10;
+        int test_cases = 10; // szhou: yayy
         double proving_time = 0;
         double verify_time = 0;
         for (int m = 3; m < rctx.m; m++) {
             uint8_t nullifier[32];
             uint8_t *proof = (uint8_t *) malloc(secp256k1_zero_mcom_DBPoE_get_size(&rctx, m) * sizeof(uint8_t));
-            clock_t begin = clock();
+            
+            // allocate arrays for per-run timings
+            double *prove_times  = (double *) malloc(test_cases * sizeof(double));
+            double *verify_times = (double *) malloc(test_cases * sizeof(double));
+
+            // --- proving ---
             for (t = 0; t < test_cases; t++) {
-                CHECK(secp256k1_boquila_prove_DBPoE_memmpk(ctx, &rctx, proof, nullifier, mpks, msks[j], chalregi, name,
-                                                           name_len, &cpk, j, topic_index, N, m));
+                clock_t begin = clock();
+                CHECK(secp256k1_boquila_prove_DBPoE_memmpk(
+                    ctx, &rctx, proof, nullifier,
+                    mpks, msks[j], chalregi,
+                    name, name_len, &cpk,
+                    j, topic_index, N, m
+                ));
+                clock_t end = clock();
+                prove_times[t] = (double)(end - begin) / CLOCKS_PER_SEC;
             }
-            clock_t end = clock();
-            double proving_time = (double) (end - begin) / CLOCKS_PER_SEC;
-            begin = clock();
+
+            // --- verifying ---
             for (t = 0; t < test_cases; t++) {
-                CHECK(secp256k1_boquila_verify_DBPoE_memmpk(ctx, &rctx, proof, nullifier, mpks, chalregi, name,
-                                                            name_len, &cpk, topic_index, N, m));
+                clock_t begin = clock();
+                CHECK(secp256k1_boquila_verify_DBPoE_memmpk(
+                    ctx, &rctx, proof, nullifier,
+                    mpks, chalregi,
+                    name, name_len, &cpk,
+                    topic_index, N, m
+                ));
+                clock_t end = clock();
+                verify_times[t] = (double)(end - begin) / CLOCKS_PER_SEC;
             }
-            end = clock();
-            double verify_time = (double) (end - begin) / CLOCKS_PER_SEC;
+
+            double prove_mean   = mean(prove_times,  test_cases);
+            double prove_stddev = stddev_sample(prove_times, test_cases);
+            double verify_mean  = mean(verify_times, test_cases);
+            double verify_stddev= stddev_sample(verify_times, test_cases);
+
+            free(prove_times);
+            free(verify_times);
             free(proof);
+
             N *= rctx.n;
-            printf("%d, %d, %d, %f, %f, %d\n", N, m, secp256k1_zero_mcom_DBPoE_get_size(&rctx, m),
-                   proving_time / test_cases, verify_time / test_cases, topic_size);
+
+            // your existing columns + the new mean/std columns
+            // (CSV friendly: N, m, proof_size, prove_mean, prove_std, verify_mean, verify_std, topic_size)
+            printf("%d, %d, %d, %f, %f, %f, %f, %d\n",
+                N, m, secp256k1_zero_mcom_DBPoE_get_size(&rctx, m),
+                prove_mean, prove_stddev,
+                verify_mean, verify_stddev,
+                topic_size);
+
         }
         secp256k1_ringcip_DBPoE_context_clear(&rctx);
     }
@@ -449,24 +547,55 @@ int test_boquila_DBPoE_topic_bench(void) {
         for (int m = 2; m < rctx.m; m++) {
             uint8_t nullifier[32];
             uint8_t *proof = (uint8_t *) malloc(secp256k1_zero_mcom_DBPoE_get_size(&rctx, m) * sizeof(uint8_t));
-            clock_t begin = clock();
+            
+            // allocate arrays for per-run timings
+            double *prove_times  = (double *) malloc(test_cases * sizeof(double));
+            double *verify_times = (double *) malloc(test_cases * sizeof(double));
+
+            // --- proving ---
             for (t = 0; t < test_cases; t++) {
-                CHECK(secp256k1_boquila_prove_DBPoE_memmpk(ctx, &rctx, proof, nullifier, mpks, msks[j], chalregi, name,
-                                                           name_len, &cpk, j, topic_index, N, m));
+                clock_t begin = clock();
+                CHECK(secp256k1_boquila_prove_DBPoE_memmpk(
+                    ctx, &rctx, proof, nullifier,
+                    mpks, msks[j], chalregi,
+                    name, name_len, &cpk,
+                    j, topic_index, N, m
+                ));
+                clock_t end = clock();
+                prove_times[t] = (double)(end - begin) / CLOCKS_PER_SEC;
             }
-            clock_t end = clock();
-            double proving_time = (double) (end - begin) / CLOCKS_PER_SEC;
-            begin = clock();
+
+            // --- verifying ---
             for (t = 0; t < test_cases; t++) {
-                CHECK(secp256k1_boquila_verify_DBPoE_memmpk(ctx, &rctx, proof, nullifier, mpks, chalregi, name,
-                                                            name_len, &cpk, topic_index, N, m));
+                clock_t begin = clock();
+                CHECK(secp256k1_boquila_verify_DBPoE_memmpk(
+                    ctx, &rctx, proof, nullifier,
+                    mpks, chalregi,
+                    name, name_len, &cpk,
+                    topic_index, N, m
+                ));
+                clock_t end = clock();
+                verify_times[t] = (double)(end - begin) / CLOCKS_PER_SEC;
             }
-            end = clock();
-            double verify_time = (double) (end - begin) / CLOCKS_PER_SEC;
+
+            double prove_mean   = mean(prove_times,  test_cases);
+            double prove_stddev = stddev_sample(prove_times, test_cases);
+            double verify_mean  = mean(verify_times, test_cases);
+            double verify_stddev= stddev_sample(verify_times, test_cases);
+
+            free(prove_times);
+            free(verify_times);
             free(proof);
+
             N *= rctx.n;
-            printf("%d, %d, %d, %f, %f, %d\n", N, m, secp256k1_zero_mcom_DBPoE_get_size(&rctx, m),
-                   proving_time / test_cases, verify_time / test_cases, topic_size);
+
+            // your existing columns + the new mean/std columns
+            // (CSV friendly: N, m, proof_size, prove_mean, prove_std, verify_mean, verify_std, topic_size)
+            printf("%d, %d, %d, %f, %f, %f, %f, %d\n",
+                N, m, secp256k1_zero_mcom_DBPoE_get_size(&rctx, m),
+                prove_mean, prove_stddev,
+                verify_mean, verify_stddev,
+                topic_size);
         }
         secp256k1_ringcip_DBPoE_context_clear(&rctx);
     }

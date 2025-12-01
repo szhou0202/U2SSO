@@ -188,7 +188,7 @@ describe("Boquila", function () {
 
     describe("Proving time and verification time for membership proofs", function () {
         it("should generate valid proofs", async function () {
-            const testcases = 20;
+            const testcases = 10;
             let provingTime = 0;
             let verificationTime = 0;
             let proofSize = 0;
@@ -204,26 +204,96 @@ describe("Boquila", function () {
 
                 const challenge = "1234";
                 const serviceName = "1234";
-                const startP = new Date().getTime();
-                let proof;
-                for (let i = 0; i < testcases; i++) {
-                    proof = await proveMem(msks[0], group, serviceName, challenge);
+
+                function mean(arr) {
+                    return arr.reduce((a, b) => a + b, 0) / arr.length;
                 }
-                const endP = new Date().getTime();
-                const startV = new Date().getTime();
+
+                function stddev(arr) {
+                    const m = mean(arr);
+                    return Math.sqrt(arr.reduce((s, x) => s + (x - m) ** 2, 0) / (arr.length-1)); // szhou: should use length-1 here for sample stddev
+                }
+
+                // Source - https://stackoverflow.com/a
+                // Posted by thomas-peter, modified by community. See post 'Timeline' for change history
+                // Retrieved 2025-12-01, License - CC BY-SA 4.0
+
+                function roughSizeOfObject(object) {
+                    const objectList = [];
+                    const stack = [object];
+                    let bytes = 0;
+
+                    while (stack.length) {
+                        const value = stack.pop();
+
+                        switch (typeof value) {
+                        case 'boolean':
+                            bytes += 4;
+                            break;
+                        case 'string':
+                            bytes += value.length * 2;
+                            break;
+                        case 'number':
+                            bytes += 8;
+                            break;
+                        case 'object':
+                            if (!objectList.includes(value)) {
+                            objectList.push(value);
+                            for (const prop in value) {
+                                if (value.hasOwnProperty(prop)) {
+                                stack.push(value[prop]);
+                                }
+                            }
+                            }
+                            break;
+                        }
+                    }
+
+                    return bytes;
+                }
+
+                const proveTimes = [];
+                const proveSizes = [];
+                const verifyTimes = [];
+
+                let proof;
+
+                // --- measure prove times per run ---
+                for (let i = 0; i < testcases; i++) {
+                    const start = performance.now();
+                    proof = await proveMem(msks[0], group, serviceName, challenge);
+                    const end = performance.now();
+                    proveTimes.push(end - start);
+                    proveSizes.push(roughSizeOfObject(proof));
+                }
+
+                // --- measure verify times per run ---
                 let val;
                 for (let i = 0; i < testcases; i++) {
+                    const start = performance.now();
                     val = await verifyMem(proof, group, serviceName, challenge);
+                    const end = performance.now();
+                    verifyTimes.push(end - start);
                 }
-                const endV = new Date().getTime();
+
                 assert.equal(true, val);
-                // proofSize = 256; // todo: compute the proof size?
-                // szhou: std deviation of runs 
-                
-                const json = JSON.stringify(proof);
-                proofSize = new TextEncoder().encode(json).length;
-                
-                console.log("%d, %d, %d, %d", proofSize, groupSize, (endP - startP)/testcases, (endV - startV)/testcases)
+
+                // --- compute statistics ---
+                const proveMean = mean(proveTimes);
+                const proveStd  = stddev(proveTimes);
+
+                const psMean = mean(proveSizes);
+                const psStd  = stddev(proveSizes);
+
+                const verifyMean = mean(verifyTimes);
+                const verifyStd  = stddev(verifyTimes);
+
+                console.log("group size: %d, %d+%d, %d+%d, %d+%d", 
+                    groupSize, proveMean.toFixed(3), proveStd.toFixed(3), 
+                    verifyMean.toFixed(3), verifyStd.toFixed(3),
+                    psMean.toFixed(3), psStd.toFixed(3)
+                );
+
             }
         });
     });
